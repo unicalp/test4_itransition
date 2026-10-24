@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import yaml
 
-#universal reader of files (tiny func)
+#universal reader of files (advice from mentor "tiny func")
 def read_yaml(file_path):
     with open(file_path, encoding="utf-8") as file:
         return pd.DataFrame(yaml.safe_load(file))
@@ -45,7 +45,7 @@ def clean_users(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    #first digit group = dollars, second = cents  (€22¢25 -> 22.25, 29€50¢ -> 29.50, $ 35 -> 35.0)
+    #first digit group = dollars, second = cents
     raw = df['unit_price'].astype(str)
     is_euro = raw.str.contains('€|EUR', case=False, na=False)
     parts = raw.str.extract(r'(\d+)(?:\D+(\d+))?')
@@ -72,7 +72,7 @@ def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-#ENTITY RESOLUTION (clearing / merge)
+#ENTITY RESOLUTION
 USER_FIELDS = ['name', 'address', 'phone', 'email']
 #task says only one field can change -> same user if 3 of 4 fields are equal
 USER_KEYS = [[c for c in USER_FIELDS if c != changed] for changed in USER_FIELDS]
@@ -87,7 +87,7 @@ def resolve_duplicates(books: pd.DataFrame, users: pd.DataFrame, orders: pd.Data
     orders['book_id'] = orders['book_id'].map(book_id_map).fillna(orders['book_id'])
     books_dedup = books.sort_values('id').drop_duplicates(subset=['canonical_id']).drop(columns=['canonical_id'])
 
-    #users = min id of the group wins, repeat until nothing changes (chained matches)
+    #users = min id of the group wins, repeat until nothing changes
     match = users[USER_FIELDS].apply(lambda s: s.str.lower())
     match['id'] = users['id']
     user_id_map = {uid: uid for uid in users['id']}
@@ -149,23 +149,31 @@ def analyze_store_data(books: pd.DataFrame, users: pd.DataFrame, orders: pd.Data
         "daily_rev_df": daily_rev
     }
 
-if __name__ == "__main__":
-    folder = sys.argv[1] if len(sys.argv) > 1 else "STORE1"
-
-    books = clean_books(read(f"{folder}/books.yaml"))
-    users = clean_users(read(f"{folder}/users.csv"))
-    orders = clean_orders(read(f"{folder}/orders.parquet"))
+#whole pipeline for one STORE folder (app.py uses this too)
+def run_store(folder):
+    folder = Path(folder)
+    #books.yaml / books.json ...  read() picks the reader from the extension
+    books = clean_books(read(next(folder.glob("books.*"))))
+    users = clean_users(read(next(folder.glob("users.*"))))
+    orders = clean_orders(read(next(folder.glob("orders.*"))))
 
     books_clean, users_clean, orders_clean = resolve_duplicates(books, users, orders)
 
-    results = analyze_store_data(books_clean, users_clean, orders_clean)
+    return analyze_store_data(books_clean, users_clean, orders_clean)
 
-    print("\n Analis of Result ")
-    print("1. Top 5 Days by Revenue:")
-    for d, rev in results["top_5_days"]:
-        print(f"   {d} -> ${rev:,.2f}")
+if __name__ == "__main__":
+    #python main.py f every STORE folder
+    folders = sys.argv[1:] or sorted(p.name for p in Path(".").glob("STORE*") if p.is_dir())
 
-    print(f"\n2.Unique Users: {results['unique_users']}")
-    print(f"3.Unique Author Sets: {results['unique_author_sets']}")
-    print(f"4.Most Popular Author(s): {results['top_authors']}")
-    print(f"5.Top Customer ID: {results['top_buyer']['id']} (Spending: ${results['top_buyer']['spending']:,.2f}) aliases: {results['top_buyer']['aliases']}")
+    for folder in folders:
+        results = run_store(folder)
+
+        print(f"\n Analis of Result - {folder}")
+        print("1. Top 5 Days by Revenue:")
+        for d, rev in results["top_5_days"]:
+            print(f"   {d} -> ${rev:,.2f}")
+
+        print(f"\n2. Unique Users: {results['unique_users']}")
+        print(f"3. Unique Author Sets: {results['unique_author_sets']}")
+        print(f"4. Most Popular Author(s): {results['top_authors']}")
+        print(f"5. Top Customer ID: {results['top_buyer']['id']} (Spending: ${results['top_buyer']['spending']:,.2f}) aliases: {results['top_buyer']['aliases']}")
