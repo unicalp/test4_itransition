@@ -12,4 +12,4 @@ streamlit run app.py           # dashboard
 
 - `main.py` – reading, cleaning, entity resolution and analysis
 - `app.py` – Streamlit dashboard (revenue / users / authors tabs)
-- `STORE1/` – raw data
+- `STORE1 to 5/` – raw data
