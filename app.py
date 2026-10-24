@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 from main import run_store
 
-st.set_page_config(page_title="Book Store Dashboard", page_icon="📚", layout="wide")
+st.set_page_config(page_title="Book Store Dashboard", layout="wide")
 
 #every STORE folder next to app
 BASE = Path(__file__).parent
@@ -18,7 +18,7 @@ res = load(folder)
 daily = res["daily_rev_df"]
 top_buyer = res["top_buyer"]
 
-st.title(f"📚 Book Store Dashboard — {folder}")
+st.title(f" Book Store Dashboard — {folder}")
 
 #kpi row
 c1, c2, c3, c4 = st.columns(4)
@@ -27,7 +27,7 @@ c2.metric("Unique users", res["unique_users"])
 c3.metric("Unique author sets", res["unique_author_sets"])
 c4.metric("Best buyer", f"id {top_buyer['id']}", f"${top_buyer['spending']:,.2f}")
 
-tab_rev, tab_users, tab_authors = st.tabs(["📈 Revenue", "👤 Users", "✍️ Authors"])
+tab_rev, tab_users, tab_authors = st.tabs(["Revenue", "Users", "Authors"])
 
 with tab_rev:
     st.subheader("Daily revenue")
